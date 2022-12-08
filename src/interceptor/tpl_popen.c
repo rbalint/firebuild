@@ -42,7 +42,9 @@
 ### block call_orig
   ENVIRON_SAVE_AND_FIXUP(did_env_fixup, environ_saved);
 
+  thread_performs_popen = true;
   {{ super() }}
+  thread_performs_popen = false;
 
   ENVIRON_RESTORE(did_env_fixup, environ_saved);
 ### endblock call_orig
