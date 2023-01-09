@@ -1,0 +1,57 @@
+name: CI on ARM
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-deb-on-arm:
+    strategy:
+      matrix:
+        arch: [armv7l, aarch64]
+        include:
+        - arch: armv7l
+          cpu: cortex-a7
+          base_image: raspios_lite:latest
+        - arch: aarch64
+          cpu: cortex-a53
+          base_image: raspios_lite_arm64:latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v3
+      with:
+        path: ~/.cache/debs
+        key: build-deb-debs-arm-${{ needs.style-checks.outputs.week }}
+    - name: restore-cached-debs
+      run: |
+        [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
+    - uses: hendrikmuhs/ccache-action@v1
+      with:
+        key: build-deb-arm
+    - uses: pguyot/arm-runner-action@v2
+      with:
+        base_image: ${{ matrix.base_image }}
+        cpu: ${{ matrix.cpu }}
+        image_additional_mb: 4000
+        commands: |
+          # install-deps
+          sudo apt update
+          sudo apt-get install -qqy eatmydata
+          sudo apt-get install -qqy ccache
+          sudo eatmydata apt-get -qqy build-dep .
+          # deb
+          export PATH=/usr/lib/ccache:$PATH
+          # skip dh_buildinfo step
+          printf '\noverride_dh_buildinfo:\n' >> debian/rules
+          # LTO is slow and also fails with: write jobserver: Bad file descriptor
+          # TODO(rbalint) debug that
+          sed -i 's/PROPERTIES INTERPROCEDURAL_OPTIMIZATION True/PROPERTIES INTERPROCEDURAL_OPTIMIZATION False/' src/*/CMakeLists.txt
+          # make also fails with jobserver error, thus using -j1
+          make -f debian/rules binary -j1
+    - name: save-cached-debs
+      run: |
+        rm -f ~/.cache/debs/*
+        cp /var/cache/apt/archives/*deb ~/.cache/debs/
