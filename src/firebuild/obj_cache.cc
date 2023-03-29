@@ -109,9 +109,20 @@ static void construct_cached_file_name(const std::string &base,
          Subkey::kAsciiLength + 1);
 }
 
-bool ObjCache::store(const Hash &key,
+void ObjCache::store(const Hash &key,
                      const FBBSTORE_Builder * const entry,
                      const FBBFP_Serialized * const debug_key) {
+  size_t len = entry->measure();
+  FBBSTORE_Serialized *entry_serial = reinterpret_cast<FBBSTORE_Serialized *>(malloc(len));
+  entry->serialize(reinterpret_cast<char*>(entry_serial));
+  deferred_serialized_entries.emplace(key, entry_serial, len, debug_key);
+}
+
+void ObjCache::store_serialized_entry(const Hash &key,
+                                      const FBBSTORE_Serialized * const entry,
+                                      const size_t len,
+                                      const FBBFP_Serialized * const debug_key) {
+  TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
   TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
@@ -146,18 +157,14 @@ bool ObjCache::store(const Hash &key,
     fb_perror("Failed mkstemp() for storing cache object");
     assert(0);
     free(tmpfile);
-    return false;
+    return;
   }
 
   // FIXME Do we need to split large files into smaller writes?
   // FIXME add basic error handling
-  // FIXME Is it faster if we alloca() for small sizes instead of malloc()?
   // FIXME Is it faster to ftruncate() the file to the desired size, then mmap,
   // then serialize to the mapped memory, then ftruncate() again to the actual size?
-  size_t len = entry->measure();
-  char *entry_serial = reinterpret_cast<char *>(malloc(len));
-  entry->serialize(entry_serial);
-  fb_write(fd_dst, entry_serial, len);
+  fb_write(fd_dst, entry, len);
   close(fd_dst);
 
   /* Create randomized object file */
@@ -172,7 +179,7 @@ bool ObjCache::store(const Hash &key,
   if (FB_DEBUGGING(FB_DEBUG_DETERMINISTIC_CACHE)) {
     /* Debugging: Instead of a randomized filename (which is fast to generate) use the content's
      * hash for a deterministic filename. */
-    XXH128_hash_t entry_hash = XXH3_128bits(entry_serial, len);
+    XXH128_hash_t entry_hash = XXH3_128bits(entry, len);
     XXH128_canonical_t canonical;
     XXH128_canonicalFromHash(&canonical, entry_hash);
     /* Use only the first part of the digest in for the subkey. */
@@ -181,19 +188,18 @@ bool ObjCache::store(const Hash &key,
   }
 
   construct_cached_file_name(base_dir_, key, subkey.c_str(), true, path_dst);
-  free(entry_serial);
 
   if (fb_renameat2(AT_FDCWD, tmpfile, AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
     if (errno == EEXIST) {
       FB_DEBUG(FB_DEBUG_CACHING, "cache object is already stored");
       unlink(tmpfile);
-      return true;
+      return;
     } else {
       fb_perror("Failed rename() while storing cache object");
       assert(0);
       unlink(tmpfile);
       free(tmpfile);
-      return false;
+      return;
     }
   } else {
     execed_process_cacher->update_cached_bytes(len);
@@ -203,7 +209,6 @@ bool ObjCache::store(const Hash &key,
     FB_DEBUG(FB_DEBUG_CACHING, "  subkey " + d(subkey));
   }
   free(tmpfile);
-
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place a human-readable version of the value in the cache, for easier debugging. */
     char* path_debug = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength
@@ -219,7 +224,15 @@ bool ObjCache::store(const Hash &key,
       fclose(f);
     }
   }
-  return true;
+}
+
+void ObjCache::store_deferred_entries() {
+  while (!deferred_serialized_entries.empty()) {
+    const deferred_serialized_entry& entry = deferred_serialized_entries.front();
+    store_serialized_entry(entry.key, entry.entry, entry.len, entry.debug_key);
+    free(entry.entry);
+    deferred_serialized_entries.pop();
+  }
 }
 
 bool ObjCache::retrieve(const Hash &key,

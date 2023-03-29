@@ -21,6 +21,7 @@
 
 #include <tsl/hopscotch_set.h>
 
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -36,6 +37,13 @@ typedef struct obj_timestamp_size_ {
   struct timespec ts {0, 0};
   off_t size {0};
 } obj_timestamp_size_t;
+
+typedef struct deferred_serialized_entry_ {
+  Hash key;
+  FBBSTORE_Serialized * entry;
+  size_t len;
+  const FBBFP_Serialized * const debug_key;
+} deferred_serialized_entry;
 
 /**
  * obj-cache is a weird caching structure where a key can contain
@@ -65,16 +73,17 @@ class ObjCache {
   ~ObjCache();
 
   /**
-   * Store a serialized entry in obj-cache.
+   * Serialize and queue entry for storing to the obj-cache.
    *
    * @param key The key
    * @param entry The entry to serialize and store
    * @param debug_key Optionally the key as pb for debugging purposes
-   * @return Whether succeeded
    */
-  bool store(const Hash &key,
+  void store(const Hash &key,
              const FBBSTORE_Builder * const entry,
              const FBBFP_Serialized * const debug_key);
+  /** Store queued serialized cache entries. */
+  void store_deferred_entries();
   /**
    * Retrieve an entry from the obj-cache.
    *
@@ -122,10 +131,23 @@ class ObjCache {
                         tsl::hopscotch_set<AsciiHash>* referenced_blobs, off_t* cache_bytes,
                         off_t* debug_bytes, off_t* unexpected_file_bytes);
 
+  /**
+   * Store a serialized entry in obj-cache.
+   *
+   * @param key The key
+   * @param entry The serialized entry to store
+   * @param len length of the entry
+   * @param debug_key Optionally the key as pb for debugging purposes
+   */
+  void store_serialized_entry(const Hash &key,
+                              const FBBSTORE_Serialized * const entry,
+                              const size_t len,
+                              const FBBFP_Serialized * const debug_key);
   /* Including the "objs" subdir. */
   std::string base_dir_;
   static constexpr char kDebugPostfix[] = "_debug.json";
   static constexpr char kDirDebugJson[] = "%_directory_debug.json";
+  std::queue<deferred_serialized_entry> deferred_serialized_entries = {};
 };
 /* singleton */
 extern ObjCache *obj_cache;

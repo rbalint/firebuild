@@ -456,6 +456,7 @@ int main(const int argc, char *argv[]) {
 
       /* Process the reported events, if any. */
       firebuild::epoll->process_all_events();
+      firebuild::obj_cache->store_deferred_entries();
     }
 
     /* Finish all top pipes */
