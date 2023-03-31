@@ -357,6 +357,28 @@ jobs:
         cd build-xcode
         xcodebuild
 
+  build-on-freebsd:
+    needs: style-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v3
+    - name: Test in FreeBSD
+      id: test
+      uses: vmactions/freebsd-vm@v1.0.6
+      with:
+        usesh: true
+        mem: 2048
+        prepare: |
+          git config --global --add safe.directory $PWD
+          pkg install -y cmake pkgconf docbook-xsl gmake bats-core py39-jinja2 python3 libconfig xxhash git
+          (cd .. && git clone https://github.com/Tessil/hopscotch-map.git && cd hopscotch-map/ && cmake . && make install)
+        run: |
+             export XML_CATALOG_FILES=/usr/local/share/xml/catalog
+             cmake -DCMAKE_CXX_FLAGS="-I/usr/local/include" -DCMAKE_BUILD_TYPE=Debug .
+             make
+             make check
+
   style-checks:
     runs-on: ubuntu-22.04
     outputs:
