@@ -37,7 +37,8 @@
 
 namespace firebuild  {
 
-static const off_t kHashingBufSize = 4096;
+static const off_t kHashingBufSize = 16384;
+static const off_t kMinMMapSize = 64 * 1024;
 
 void Hash::set_from_data(const void *data, ssize_t size) {
   TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "");
@@ -141,6 +142,8 @@ bool Hash::set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out, 
     } else if (size == 0) {
       set_from_data(nullptr, 0);
       return true;
+    } else if (size < kMinMMapSize) {
+      return set_from_fd_pread(fd, size_out ? size_out : &size);
     } else {
       /* st->st_size > 0 */
       void *map_addr;
