@@ -9,7 +9,7 @@ parallel_make_test_main.c:
 
 # Note the '+' prefix before the commad. This makes make keep the jobserver pipe open even when not invoking a sub-make.
 # See: https://savannah.gnu.org/bugs/?47392
-parallel_make_test_main: parallel_make_test_main.c $(patsubst %,parallel_make_test.%.o,$(shell seq 8))
+parallel_make_test_main: parallel_make_test_main.c $(patsubst %,parallel_make_test.%.o,$(shell seq 2))
 	+gcc -flto=auto -o $@ $^
 
 clean:
