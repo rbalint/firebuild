@@ -330,15 +330,23 @@ jobs:
       run: |
         # library validation would prevent loading libfirebuild to some binaries
         sudo defaults write /Library/Preferences/com.apple.security.libraryvalidation.plist DisableLibraryValidation -bool true
-    - name: build-in-tree
+    - name: build-out-of-tree
       run: |
         export PATH=/usr/local/opt/ccache/libexec:$PATH
         export PYTHONPATH=$(ls -d /usr/local/lib/python*/site-packages | tail -n1)
-        cmake -DCMAKE_CXX_FLAGS="-I/usr/local/include" -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" -DCMAKE_BUILD_TYPE=Debug .
-        make -j2
+        cmake -DCMAKE_CXX_FLAGS="-I/usr/local/include" -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" -DCMAKE_BUILD_TYPE=Debug -B build-make
+        make -C build-make -j2
     - name: test
       run: |
-        make check
+        make -C build-make check
+    - name: install firebuild
+      run: |
+        sudo make -C build-make install
+    - name: rebuild-self-with-xcode
+      run: |
+        export PYTHONPATH=$(ls -d /usr/local/lib/python*/site-packages | tail -n1)
+        firebuild -o env_vars.pass_through+=\"PYTHONPATH\" cmake -G Xcode -DCMAKE_CXX_FLAGS="-I/usr/local/include" -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" -S . -B build-xcode
+        firebuild -o env_vars.pass_through+=\"PYTHONPATH\" -o env_vars.pass_through+=\"XML_CATALOG_FILES\" bash -c "cd build-xcode && xcodebuild"
 
   style-checks:
     runs-on: ubuntu-22.04
