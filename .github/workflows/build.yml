@@ -43,5 +43,10 @@ jobs:
         export PYTHONPATH=$(ls -d /usr/local/Cellar/jinja2-cli/*/libexec/lib/python*/site-packages | tail -n1)
         cd build-make/test
         ./run-firebuild cmake -G Xcode -DCMAKE_CXX_FLAGS="-I/usr/local/include" -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" -S ../.. -B ../../build-xcode
-        ./run-firebuild env PYTHONPATH=$PYTHONPATH bash -c "cd ../../build-xcode && xcodebuild"
-
+        wget -O dtruss https://gitlab.com/pmdj/macos-dtrace-scripts/-/raw/main/dtruss?ref_type=heads
+        sed -i '' 's/.usr.bin.sudo //' dtruss
+        chmod +x dtruss
+        printf "$!/bin/bash\nexport PYTHONPATH=$PYTHONPATH\nexport PATH=$PATH\ncd ../../build-xcode\nxcodebuild" > build-with-xcode.sh
+        chmod +x build-with-xcode.sh
+        sudo timeout 60 ./dtruss -s -f  -- ./run-firebuild -i -d comm,proc -- ./build-with-xcode.sh || true
+        cat stderr
