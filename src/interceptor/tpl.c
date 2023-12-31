@@ -296,6 +296,13 @@ case {{ func }}: {
   bool success = false;
 
   /* Beforework */
+###       if target == "darwin"
+  bool interception_recursion_depth_changed = false;
+  if (i_am_intercepting && FB_THREAD_LOCAL(interception_recursion_depth) > 0) {
+    FB_THREAD_LOCAL(interception_recursion_depth)--;
+    interception_recursion_depth_changed = true;
+  }
+###       endif
 ###       block before
 ###         if before_lines
 ###           for item in before_lines
@@ -336,6 +343,11 @@ case {{ func }}: {
 ###           endfor
 ###         endif
 ###       endblock after
+###       if target == "darwin"
+  if (interception_recursion_depth_changed) {
+    FB_THREAD_LOCAL(interception_recursion_depth)++;
+  }
+###       endif
 
 ###     if global_lock == 'after'
   {{ grab_lock_if_needed('i_am_intercepting') }}
