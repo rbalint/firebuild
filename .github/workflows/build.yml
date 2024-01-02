@@ -38,6 +38,7 @@ jobs:
       run: |
         export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
         cd test
+        cc --version
         wget -O dtruss https://gitlab.com/pmdj/macos-dtrace-scripts/-/raw/main/dtruss?ref_type=heads
         sed -i '' 's/.usr.bin.sudo //' dtruss
         chmod +x dtruss
