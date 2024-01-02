@@ -38,6 +38,9 @@ jobs:
       run: |
         export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
         cd test
-        sudo ./run-firebuild -d all -i -- dtruss -s -f make -s -j2 -f test_parallel_make.Makefile || true
+        wget -O dtruss https://gitlab.com/pmdj/macos-dtrace-scripts/-/raw/main/dtruss?ref_type=heads
+        sed -i '' 's/.usr.bin.sudo //' dtruss
+        chmod +x dtruss
+        sudo timeout 40 ./run-firebuild -d all -i -- ./dtruss -s -f make -s -j2 -f test_parallel_make.Makefile || true
         cat stderr
         #make check || true
