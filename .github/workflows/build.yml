@@ -38,6 +38,6 @@ jobs:
       run: |
         export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
         cd test
-        sudo ./run-firebuild -i -- dtruss -s -f make -s -j2 -f test_parallel_make.Makefile || true
+        sudo ./run-firebuild -d all -i -- dtruss -s -f make -s -j2 -f test_parallel_make.Makefile || true
         cat stderr
         #make check || true
