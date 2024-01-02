@@ -48,6 +48,7 @@ jobs:
         chmod +x dtruss
         printf "$!/bin/bash\nexport PYTHONPATH=$PYTHONPATH\nexport PATH=$PATH\ncd ../../build-xcode\nxcodebuild" > build-with-xcode.sh
         chmod +x build-with-xcode.sh
+        sudo spctl --global-disable
         sudo defaults write /Library/Preferences/com.apple.security.libraryvalidation.plist DisableLibraryValidation -bool true
         sudo timeout 120 ./dtruss -s -f  -- ./run-firebuild -i -d comm,proc -- ./build-with-xcode.sh || true
         cat stderr
