@@ -50,6 +50,8 @@ jobs:
         cd build-make/test
         ./run-firebuild cmake -G Xcode -DCMAKE_CXX_FLAGS="-I/usr/local/include" -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" -S ../.. -B ../../build-xcode || true
         ls -R ../../build-xcode
-        ./run-firebuild -d all bash -c "(cd ../../build-xcode/CMakeFiles/*/CompilerIdC && xcodebuild) 1>&2"
+        ulimit -c unlimited
+        ./run-firebuild bash -c "(cd ../../build-xcode/CMakeFiles/*/CompilerIdC && xcodebuild) 1>&2" || true
+        ls /cores
         # TODO(rbalint) build with xcodebuild, wrapped with firebuild
 
