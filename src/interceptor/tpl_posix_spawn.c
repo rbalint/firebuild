@@ -90,7 +90,7 @@
       fbbcomm_builder_posix_spawn_parent_set_arg(&ic_msg, (const char **) argv);
       if (file_actions) {
         voidp_array *p = psfa_find(file_actions);
-        assert(p);
+        assert(p != NULL);
         fbbcomm_builder_posix_spawn_parent_set_file_actions(&ic_msg, (const FBBCOMM_Builder **) (p->p));
       }
       fbbcomm_builder_posix_spawn_parent_set_pid(&ic_msg, *pid);
