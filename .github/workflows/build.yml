@@ -50,6 +50,6 @@ jobs:
     - name: rebuild-self-with-xcode
       run: |
         export PYTHONPATH=$(ls -d /usr/local/lib/python*/site-packages | tail -n1)
-        firebuild -o env_vars.pass_through+=\"PYTHONPATH\" cmake -G Xcode -DCMAKE_CXX_FLAGS="-I/usr/local/include" -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" -S . -B build-xcode
+        cmake -G Xcode -DCMAKE_CXX_FLAGS="-I/usr/local/include" -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" -S . -B build-xcode
         firebuild -o env_vars.pass_through+=\"PYTHONPATH\" -o env_vars.pass_through+=\"XML_CATALOG_FILES\" bash -c "cd build-xcode && xcodebuild"
 
