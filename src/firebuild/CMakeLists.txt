@@ -9,6 +9,7 @@ set_source_files_properties(config.cc PROPERTIES COMPILE_FLAGS "-DFB_INTERCEPTOR
 
 set_source_files_properties(options.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"'")
 
+find_package(tsl-hopscotch-map REQUIRED)
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
 # xxh128's algorithm changed and became officially supported in 0.8.0
@@ -16,7 +17,6 @@ pkg_check_modules(XXHASH REQUIRED libxxhash>=0.8.0)
 if (WITH_JEMALLOC)
   pkg_check_modules(JEMALLOC jemalloc)
 endif()
-find_package(tsl-hopscotch-map REQUIRED)
 if (APPLE)
   pkg_check_modules(PLIST REQUIRED libplist-2.0>=2.3.0)
   find_library(IOKit IOKit)
