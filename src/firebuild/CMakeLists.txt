@@ -1,6 +1,7 @@
 
 # GCC raises warning about the GCC-optimized code
-set_source_files_properties(debug.cc execed_process.cc file_name.cc obj_cache.cc utils.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
+set_source_files_properties(debug.cc execed_process.cc obj_cache.cc utils.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
+set_source_files_properties(file_name.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
 
 # FBB structures and placing them aligned in buffers ensure that members will be aligned properly, too
 set_source_files_properties(execed_process_cacher.cc PROPERTIES COMPILE_FLAGS "-Wno-cast-align -Wno-strict-overflow")
