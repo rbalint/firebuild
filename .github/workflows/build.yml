@@ -334,7 +334,7 @@ jobs:
       run: |
         export PATH=/usr/local/opt/ccache/libexec:$PATH
         export PYTHONPATH=$(ls -d /usr/local/lib/python*/site-packages | tail -n1)
-        cmake --debug-find -DCMAKE_BUILD_TYPE=Debug .
+        cmake --trace -DCMAKE_BUILD_TYPE=Debug .
         make -j2
     - name: test
       run: |
