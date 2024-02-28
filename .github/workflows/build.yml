@@ -40,7 +40,7 @@ jobs:
         export PATH=/usr/local/opt/ccache/libexec:$PATH
         export PYTHONPATH=$(ls -d /usr/local/lib/python*/site-packages | tail -n1)
         cmake --trace -DCMAKE_BUILD_TYPE=Debug .
-        make -j2
+        make -j2 VERBOSE=1
     - name: test
       run: |
         make check
