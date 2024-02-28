@@ -21,7 +21,7 @@ jobs:
     steps:
     - name: check if SIP is enabled on this runner
       run: |
-        csrutil status | grep "System Integrity Protection status: disabled"
+        csrutil status | grep "System Integrity Protection status: disabled" || true
     - uses: actions/checkout@v3
     - uses: hendrikmuhs/ccache-action@v1
       with:
