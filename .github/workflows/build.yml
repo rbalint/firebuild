@@ -318,6 +318,7 @@ jobs:
     steps:
     - name: check if SIP is enabled on this runner
       run: |
+        # still enabled on a number of macos-12 runners, see: https://github.com/actions/runner-images/issues/9091
         csrutil status | grep "System Integrity Protection status: disabled"
     - uses: actions/checkout@v4
     - uses: hendrikmuhs/ccache-action@v1
