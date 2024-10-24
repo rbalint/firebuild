@@ -51,7 +51,7 @@ static int cmp_cstring_view(const void *p1, const void *p2) {
 
 void cstring_view_array_sort(cstring_view_array *array) {
   if (array->p) {
-    qsort(array->p, array->len, sizeof(cstring_view), cmp_cstring_view);
+    heapsort_alloca(array->p, array->len, sizeof(cstring_view), cmp_cstring_view);
   }
 }
 
