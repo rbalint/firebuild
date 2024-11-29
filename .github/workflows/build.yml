@@ -353,10 +353,13 @@ jobs:
         export XML_CATALOG_FILES=${HOMEBREW_PREFIX}/etc/xml/catalog
         export PATH=${HOMEBREW_PREFIX}/opt/ccache/libexec:$PATH
         export PYTHONPATH=$(ls -d ${HOMEBREW_PREFIX}/Cellar/jinja2-cli/*/libexec/lib/*/site-packages | tail -n1)
-        cmake -G Xcode -B build-xcode
-        cd build-xcode
-        xcodebuild
-
+        # build self with Xcode
+        for i in 1 2; do
+          rm -rf build-xcode
+          time firebuild cmake -G Xcode -B build-xcode
+          (cd build-xcode &&
+           time firebuild -o env_vars.pass_through+=\"PYTHONPATH\" -o env_vars.pass_through+=\"XML_CATALOG_FILES\" xcodebuild)
+        done
   style-checks:
     runs-on: ubuntu-22.04
     outputs:
