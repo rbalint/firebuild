@@ -25,6 +25,9 @@
 #include <IOKit/IOKitKeys.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <plist/plist++.h>
+#else
+#include <gelf.h>
+#include <libelf.h>
 #endif
 #include <stdio.h>
 #include <sys/resource.h>
@@ -238,6 +241,33 @@ void bump_limits() {
     setrlimit(RLIMIT_NOFILE, &rlim);
   }
 }
+
+#ifndef __APPLE__
+bool is_statically_linked(const char *filename) {
+    if (elf_version(EV_CURRENT) == EV_NONE) return false;
+    int fd = open(filename, O_RDONLY);
+    if (fd < 0) return false;
+
+    Elf *e = elf_begin(fd, ELF_C_READ, NULL);
+    if (!e) return false;
+
+    size_t n;
+    if (elf_getphdrnum(e, &n) != 0) return false;
+
+    for (size_t i = 0; i < n; i++) {
+        GElf_Phdr phdr;
+        gelf_getphdr(e, i, &phdr);
+        if (phdr.p_type == PT_INTERP) {
+            elf_end(e);
+            close(fd);
+            return false;
+        }
+    }
+    elf_end(e);
+    close(fd);
+    return true;
+}
+#endif
 
 namespace firebuild {
 
