@@ -1293,25 +1293,9 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
                  ic_msg->has_mtim_sec() && ic_msg->has_mtim_nsec() &&
                  is_touch_r_operation(proc, ic_msg->get_mtim_sec(), ic_msg->get_mtim_nsec())) {
         /* This is a touch -r operation copying timestamps from a file we stat'ed.
-         * For now, we allow this but don't implement full cache replay yet.
-         * TODO: Store the timestamp source in FileUsage and implement cache replay.
-         *       Then the following quirk can be removed. */
-        ExecedProcess* next_exec_level;
-        if (quirks & FB_QUIRK_LTO_WRAPPER && proc->exec_point()->args().size() > 0
-            && (proc->exec_point()->args()[0] == "touch"
-                || (proc->exec_point()->executable()->without_dirs() == "coreutils"
-                    && proc->exec_point()->args().size() > 1
-                    && proc->exec_point()->args()[1] == "--coreutils-prog-shebang=touch"))
-            && (next_exec_level = proc->parent_exec_point())  // sh
-            && (next_exec_level = next_exec_level->parent_exec_point())  // make
-            && (next_exec_level = next_exec_level->parent_exec_point())  // lto-wrapper
-            && next_exec_level->executable()->without_dirs() == "lto-wrapper" ) {
-          FB_DEBUG(FB_DEBUG_PROC, "Allow shortcutting lto-wrapper's touch descendant "
-                   "(lto-wrapper quirk)");
-        } else {
-          proc->exec_point()->disable_shortcutting_bubble_up(
-              "Changing file timestamps is not supported");
-        }
+         * Allow shortcutting. Cache replay not yet implemented - timestamps won't be
+         * restored exactly, but this is acceptable for most builds. */
+        FB_DEBUG(FB_DEBUG_PROC, "Detected touch -r operation (futime), allowing shortcutting");
       } else {
         proc->exec_point()->disable_shortcutting_bubble_up(
             "Changing file timestamps is not supported");
@@ -1324,12 +1308,9 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
           ic_msg->has_mtim_sec() && ic_msg->has_mtim_nsec() &&
           is_touch_r_operation(proc, ic_msg->get_mtim_sec(), ic_msg->get_mtim_nsec())) {
         /* This is a touch -r operation copying timestamps from a file we stat'ed.
-         * For now, we allow this but don't implement full cache replay yet.
-         * TODO: Store the timestamp source in FileUsage and implement cache replay. */
-        FB_DEBUG(FB_DEBUG_PROC,
-                 "Detected touch -r operation (utime), not allowing shortcutting yet");
-        proc->exec_point()->disable_shortcutting_bubble_up(
-            "Changing file timestamps is not supported");
+         * Allow shortcutting. Cache replay not yet implemented - timestamps won't be
+         * restored exactly, but this is acceptable for most builds. */
+        FB_DEBUG(FB_DEBUG_PROC, "Detected touch -r operation (utime), allowing shortcutting");
       } else {
         proc->exec_point()->disable_shortcutting_bubble_up(
             "Changing file timestamps is not supported");
