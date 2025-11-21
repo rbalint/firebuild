@@ -63,12 +63,20 @@ namespace firebuild {
  * @param proc The process performing the utime operation
  * @param mtim_sec Modification time seconds being set
  * @param mtim_nsec Modification time nanoseconds being set
+ * @param[out] source_file If non-null and touch -r is detected, set to the source filename
  * @return true if this appears to be a touch -r operation
  */
-static bool is_touch_r_operation(Process* proc, time_t mtim_sec, int64_t mtim_nsec) {
+static bool is_touch_r_operation(Process* proc, time_t mtim_sec, int64_t mtim_nsec,
+                                  const FileName** source_file = nullptr) {
   auto mtime_key = std::make_pair(mtim_sec, mtim_nsec);
   auto it = proc->mtime_to_file().find(mtime_key);
-  return it != proc->mtime_to_file().end();
+  if (it != proc->mtime_to_file().end()) {
+    if (source_file) {
+      *source_file = it->second;
+    }
+    return true;
+  }
+  return false;
 }
 
 static void reject_exec_child(int fd_conn) {
@@ -1290,12 +1298,22 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
         /* The fd has been opened for writing and the access and modification times should be set to
          * current time which happens automatically when the process is shortcut. This is safe. */
       } else if (!ic_msg->has_error_no() && !ic_msg->get_all_utime_now() &&
-                 ic_msg->has_mtim_sec() && ic_msg->has_mtim_nsec() &&
-                 is_touch_r_operation(proc, ic_msg->get_mtim_sec(), ic_msg->get_mtim_nsec())) {
-        /* This is a touch -r operation copying timestamps from a file we stat'ed.
-         * Allow shortcutting. Cache replay not yet implemented - timestamps won't be
-         * restored exactly, but this is acceptable for most builds. */
-        FB_DEBUG(FB_DEBUG_PROC, "Detected touch -r operation (futime), allowing shortcutting");
+                 ic_msg->has_mtim_sec() && ic_msg->has_mtim_nsec()) {
+        const FileName* source_file = nullptr;
+        if (is_touch_r_operation(proc, ic_msg->get_mtim_sec(), ic_msg->get_mtim_nsec(),
+                                  &source_file)) {
+          /* This is a touch -r operation copying timestamps from a file we stat'ed.
+           * Register the file usage with the timestamp source for cache replay. */
+          FB_DEBUG(FB_DEBUG_PROC, "Detected touch -r operation (futime), allowing shortcutting");
+          if (ffd && ffd->filename()) {
+            FileUsageUpdate update(ffd->filename(), DONTKNOW, true);
+            update.set_timestamp_source(source_file);
+            proc->exec_point()->register_file_usage_update(ffd->filename(), update);
+          }
+        } else {
+          proc->exec_point()->disable_shortcutting_bubble_up(
+              "Changing file timestamps is not supported");
+        }
       } else {
         proc->exec_point()->disable_shortcutting_bubble_up(
             "Changing file timestamps is not supported");
@@ -1305,12 +1323,25 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
     case FBBCOMM_TAG_utime: {
       auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_utime *>(fbbcomm_buf);
       if (!ic_msg->has_error_no() && !ic_msg->get_all_utime_now() &&
-          ic_msg->has_mtim_sec() && ic_msg->has_mtim_nsec() &&
-          is_touch_r_operation(proc, ic_msg->get_mtim_sec(), ic_msg->get_mtim_nsec())) {
-        /* This is a touch -r operation copying timestamps from a file we stat'ed.
-         * Allow shortcutting. Cache replay not yet implemented - timestamps won't be
-         * restored exactly, but this is acceptable for most builds. */
-        FB_DEBUG(FB_DEBUG_PROC, "Detected touch -r operation (utime), allowing shortcutting");
+          ic_msg->has_mtim_sec() && ic_msg->has_mtim_nsec()) {
+        const FileName* source_file = nullptr;
+        if (is_touch_r_operation(proc, ic_msg->get_mtim_sec(), ic_msg->get_mtim_nsec(),
+                                  &source_file)) {
+          /* This is a touch -r operation copying timestamps from a file we stat'ed.
+           * Register the file usage with the timestamp source for cache replay. */
+          FB_DEBUG(FB_DEBUG_PROC, "Detected touch -r operation (utime), allowing shortcutting");
+          if (ic_msg->has_pathname()) {
+            const FileName* target_file =
+                FileName::GetCanonicalized(ic_msg->get_pathname(), ic_msg->get_pathname_len(),
+                                           proc->wd());
+            FileUsageUpdate update(target_file, DONTKNOW, true);
+            update.set_timestamp_source(source_file);
+            proc->exec_point()->register_file_usage_update(target_file, update);
+          }
+        } else {
+          proc->exec_point()->disable_shortcutting_bubble_up(
+              "Changing file timestamps is not supported");
+        }
       } else {
         proc->exec_point()->disable_shortcutting_bubble_up(
             "Changing file timestamps is not supported");
