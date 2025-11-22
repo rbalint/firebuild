@@ -124,7 +124,7 @@ struct statx {
 #endif
 
 #if defined(__APPLE__) || (defined(_FILE_OFFSET_BITS) && (_FILE_OFFSET_BITS == 64) && \
-                           (__BITS_PER_LONG == 32))
+                           (__SIZEOF_POINTER__ == 4))
 #define PRIoff "lld"
 #define SCNoff "lld"
 #else
@@ -144,8 +144,8 @@ struct statx {
 #define PRIloff PRIoff64
 #endif
 
-#if defined(__USE_TIME_BITS64) && defined(__BITS_PER_LONG)
-#if __BITS_PER_LONG == 32
+#if defined(__USE_TIME_BITS64)
+#if __SIZEOF_POINTER__ == 4
 #define PRItime "lld"
 #else
 #define PRItime "ld"

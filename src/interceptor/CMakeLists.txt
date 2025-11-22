@@ -13,7 +13,7 @@ if (SANITIZE)
 endif()
 
 add_custom_command (
-  OUTPUT gen_decl.h gen_def.c gen_impl.c gen_impl_syscalls.c.inc gen_list.txt gen_reset.c
+  OUTPUT gen_decl.h gen_def.c gen_time64_def.c gen_impl.c gen_time64_impl.c gen_impl_syscalls.c.inc gen_list.txt gen_reset.c
   DEPENDS generate_interceptors
   tpl.c.jinja2
   tpl_clone.c.jinja2
@@ -53,7 +53,7 @@ add_custom_command (
   COMMAND ./generate_interceptors ${CMAKE_CURRENT_BINARY_DIR}
   COMMENT "Generating interceptor files from templates")
 
-add_custom_target(gen_files ALL DEPENDS gen_decl.h gen_def.c gen_impl.c gen_impl_syscalls.c.inc gen_list.txt gen_reset.c)
+add_custom_target(gen_files ALL DEPENDS gen_decl.h gen_def.c gen_impl.c gen_time64_impl.c gen_impl_syscalls.c.inc gen_list.txt gen_reset.c)
 
 set_source_files_properties(
   env.c
@@ -65,6 +65,7 @@ add_library(firebuild SHARED
   ic_file_ops.c
   intercept.c
   interceptors.c
+  interceptors_time64.c
   $<TARGET_OBJECTS:common_objs>
   $<TARGET_OBJECTS:fbbcomm_c>)
 
