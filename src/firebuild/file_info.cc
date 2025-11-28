@@ -65,6 +65,8 @@ const char *file_type_to_string(FileType type) {
       return "isreg";
     case ISDIR:
       return "isdir";
+    case ISSYMLINK:
+      return "issymlink";
     default:
       assert(0 && "unknown type");
       return "UNKNOWN";

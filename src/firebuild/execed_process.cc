@@ -58,7 +58,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
       initial_wd_(initial_wd), wds_(), failed_wds_(), args_(args), env_vars_(env_vars),
       executable_(executable), executed_path_(executed_path),
       original_executed_path_(original_executed_path),
-      libs_(libs), file_usages_(), created_pipes_() {
+      libs_(libs), file_usages_(), symlink_targets_(), created_pipes_() {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this,
          "pid=%d, ppid=%d, initial_wd=%s, executable=%s, umask=%03o, parent=%s",
          pid, ppid, D(initial_wd), D(executable), umask, D(parent));

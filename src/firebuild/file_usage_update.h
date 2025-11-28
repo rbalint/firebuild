@@ -47,6 +47,8 @@ class FileUsageUpdate {
   static FileUsageUpdate get_oldfile_usage_from_rename_params(const FileName* old_name,
                                                               const FileName* new_name, int err);
   static FileUsageUpdate get_newfile_usage_from_rename_params(const FileName* new_name, int err);
+  static FileUsageUpdate get_from_symlink_params(const FileName *filename, const char* target,
+                                                 int err);
 
   FileType parent_type() const {return parent_type_;}
   bool written() const {return written_;}

@@ -44,7 +44,9 @@ typedef enum {
   ISREG,
   /** We know that the filesystem entry is a directory. */
   ISDIR,
-  FILE_TYPE_MAX = ISDIR
+  /** We know that the filesystem entry is a symbolic link. */
+  ISSYMLINK,
+  FILE_TYPE_MAX = ISSYMLINK
 } FileType;
 
 /**
@@ -102,6 +104,7 @@ class FileInfo {
       case NOTEXIST_OR_ISREG: return NOTEXIST_OR_ISREG;
       case ISREG: return ISREG;
       case ISDIR: return ISDIR;
+      case ISSYMLINK: return ISSYMLINK;
       default:
         abort();
     }
@@ -115,6 +118,7 @@ class FileInfo {
       case NOTEXIST_OR_ISREG: return NOTEXIST_OR_ISREG;
       case ISREG: return ISREG;
       case ISDIR: return ISDIR;
+      case ISSYMLINK: return ISSYMLINK;
       default:
         abort();
     }

@@ -208,7 +208,8 @@ class ProcessFBBAdaptor {
   static int handle(Process *proc, const FBBCOMM_Serialized_symlink *msg) {
     const int newdirfd = msg->get_newdirfd_with_fallback(AT_FDCWD);
     const int error = msg->get_error_no_with_fallback(0);
-    return proc->handle_symlink(msg->get_target(), newdirfd, msg->get_newpath(), error);
+    return proc->handle_symlink(msg->get_target(), msg->get_target_len(),
+                                newdirfd, msg->get_newpath(), msg->get_newpath_len(), error);
   }
 
   static int handle(Process *proc, const FBBCOMM_Serialized_fcntl *msg) {
