@@ -55,7 +55,7 @@
       # file path, absolute or relative
       (REQUIRED, STRING,                "path"),
 
-      # file type, e.g. ISREG, NOTEXIST_OR_ISREG, ISDIR etc.
+      # file type, e.g. ISREG, NOTEXIST_OR_ISREG, ISDIR, ISSYMLINK etc.
       (REQUIRED, "firebuild::FileType", "type"),
       # file size
       (OPTIONAL, "size_t",              "size"),
@@ -79,6 +79,8 @@
       # Source file for touch -r timestamp copy operation
       # If set, this file's timestamp should be copied from the specified source file
       (OPTIONAL, STRING,                "timestamp_source"),
+      # Target path for symlinks (only set when type is ISSYMLINK)
+      (OPTIONAL, STRING,                "symlink_target"),
     ]),
 
     ("dir", [
@@ -122,12 +124,14 @@
       (ARRAY,    FBB,    "path_isreg"),            # tag "file"
       # Directories created
       (ARRAY,    FBB,    "path_isdir"),            # tag "file"
+      # Symlinks created
+      (ARRAY,    FBB,    "path_issymlink"),        # tag "file"
       (ARRAY,    STRING, "path_notexist"),
       # Maybe special handling of files that are appended to?
 
       # TODO:
       # unlink, rmdir
-      # link, symlink
+      # link
       # chown, chmod
       # etc.
 

@@ -70,6 +70,7 @@ class FileUsage {
       {initial_state_.set_mode_bits(mode, mode_mask);}
   mode_t initial_mode() const {return initial_state_.mode();}
   mode_t initial_mode_mask() const {return initial_state_.mode_mask();}
+  const char* initial_symlink_target() const {return initial_state_.symlink_target();}
   const FileInfo& initial_state() const {return initial_state_;}
 
   static const FileUsage* Get(FileType type = DONTKNOW) {
@@ -186,6 +187,11 @@ struct FileUsageHasher {
     const FileName* ts_src = f.timestamp_source();
     if (ts_src) {
       hash = XXH3_64bits_withSeed(ts_src, sizeof(ts_src), hash);
+    }
+    // Include symlink_target in the hash
+    const char* symlink_target = f.initial_symlink_target();
+    if (symlink_target) {
+      hash = XXH3_64bits_withSeed(symlink_target, strlen(symlink_target), hash);
     }
     return hash;
   }

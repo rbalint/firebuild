@@ -524,7 +524,8 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
 
 static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
                      const FileInfo& fi, bool output_file, const FileUsage* fu = nullptr,
-                     const char* inline_data = nullptr, size_t inline_data_len = 0) {
+                     const char* inline_data = nullptr, size_t inline_data_len = 0,
+                     const char* symlink_target = nullptr, size_t symlink_target_len = 0) {
   FBBSTORE_Builder_file& new_file = files->emplace_back();
   new_file.set_path_with_length(file_name->c_str(), file_name->length());
   new_file.set_type(fi.type());
@@ -552,6 +553,10 @@ static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* 
   if (output_file && fu && fu->timestamp_source() && fi.type() != NOTEXIST) {
     const FileName* ts_src = fu->timestamp_source();
     new_file.set_timestamp_source_with_length(ts_src->c_str(), ts_src->length());
+  }
+  /* Store symlink target if this is a symlink */
+  if (symlink_target && symlink_target_len > 0) {
+    new_file.set_symlink_target_with_length(symlink_target, symlink_target_len);
   }
 }
 
@@ -721,7 +726,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
 
   /* File outputs */
   FBBSTORE_Builder_process_outputs po;
-  std::vector<FBBSTORE_Builder_file> out_path_isreg, out_path_isdir;
+  std::vector<FBBSTORE_Builder_file> out_path_isreg, out_path_isdir, out_path_issymlink;
   std::vector<const char *> out_path_notexist;
   /* Outputs for verification. */
   tsl::hopscotch_set<const FileName*> out_path_isdir_filename_ptrs;
@@ -807,8 +812,14 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
 
     FileInfo new_file_info(DONTKNOW);
 
+    /* Check if this file is a symlink created by the process by looking at the FileUsage */
+    bool is_created_symlink = fu->initial_symlink_target() != nullptr;
+
     struct stat64 st;
-    if (stat64(filename->c_str(), &st) == 0) {
+    /* Use lstat64 for symlinks to not follow them */
+    int stat_result = is_created_symlink ? lstat64(filename->c_str(), &st)
+                                         : stat64(filename->c_str(), &st);
+    if (stat_result == 0) {
       /* We have something, let's see what it is. */
       new_file_info.set_type(EXIST);
 
@@ -856,6 +867,9 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
           }
         } else if (S_ISDIR(st.st_mode)) {
           new_file_info.set_type(ISDIR);
+        } else if (S_ISLNK(st.st_mode)) {
+          /* Symlink detected */
+          new_file_info.set_type(ISSYMLINK);
         } else {
           // TODO(egmont) handle other types of entries
           new_file_info.set_type(NOTEXIST);
@@ -904,6 +918,22 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
         }
         add_file(&out_path_isdir, filename, new_file_info, true, fu);
         out_path_isdir_filename_ptrs.insert(filename);
+        break;
+      case ISSYMLINK:
+        {
+          /* Get the symlink target from FileUsage */
+          const char* target = fu->initial_symlink_target();
+          if (target) {
+            add_file(&out_path_issymlink, filename, new_file_info, true, fu,
+                     nullptr, 0, target, strlen(target));
+          } else {
+            /* Symlink target not found, this shouldn't happen */
+            FB_DEBUG(FB_DEBUG_CACHING,
+                     "Symlink target not found for " + d(filename));
+            proc->disable_shortcutting_only_this("Symlink target not found");
+            return;
+          }
+        }
         break;
       case NOTEXIST:
         if (fu->initial_type() != NOTEXIST) {
@@ -1045,6 +1075,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
   std::sort(in_path.begin() + in_path_non_system_count, in_path.end(), file_less);
   std::sort(out_path_isreg.begin(), out_path_isreg.end(), file_less);
   std::sort(out_path_isdir.begin(), out_path_isdir.end(), file_less);
+  std::sort(out_path_issymlink.begin(), out_path_issymlink.end(), file_less);
 
   struct {
     bool operator()(const cstring_view& a, const cstring_view& b) const {
@@ -1063,6 +1094,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
   pi.set_path_notexist(in_path_notexist);
   po.set_path_isreg_item_fn(out_path_isreg.size(), file_item_fn, &out_path_isreg);
   po.set_path_isdir_item_fn(out_path_isdir.size(), file_item_fn, &out_path_isdir);
+  po.set_path_issymlink_item_fn(out_path_issymlink.size(), file_item_fn, &out_path_issymlink);
   po.set_path_notexist(out_path_notexist);
   po.set_append_to_fd_item_fn(out_append_to_fd.size(), fbbstore_builder_append_to_fd_vector_item_fn,
                               &out_append_to_fd);
@@ -1380,6 +1412,43 @@ static bool restore_dirs(
 }
 
 /**
+ * Restore output symlinks.
+ */
+static bool restore_symlinks(
+    ExecedProcess* proc,
+    const FBBSTORE_Serialized_process_outputs *outputs) {
+  for (size_t i = 0; i < outputs->get_path_issymlink_count(); i++) {
+    const FBBSTORE_Serialized *symlink_generic = outputs->get_path_issymlink_at(i);
+    assert_cmp(symlink_generic->get_tag(), ==, FBBSTORE_TAG_file);
+    auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(symlink_generic);
+    const auto path = FileName::Get(file->get_path(), file->get_path_len());
+
+    if (!file->has_symlink_target()) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Symlink target missing for: " + d(path));
+      return false;
+    }
+
+    const char* target = file->get_symlink_target();
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Creating symlink: " + d(path) + " -> " + d(target));
+
+    /* Remove existing file if any */
+    unlink(path->c_str());
+
+    int ret = symlink(target, path->c_str());
+    if (ret != 0) {
+      fb_perror("Failed to create symlink");
+      return false;
+    }
+
+    if (proc->parent_exec_point()) {
+      FileUsageUpdate update = file_to_file_usage_update(path, file);
+      proc->parent_exec_point()->register_file_usage_update(path, update);
+    }
+  }
+  return true;
+}
+
+/**
  * Remove files and directories.
  *
  * Remove them in descending order of the pathname lengths, so that parent directories are
@@ -1506,6 +1575,10 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   }
 
   if (!restore_dirs(proc, outputs)) {
+    return false;
+  }
+
+  if (!restore_symlinks(proc, outputs)) {
     return false;
   }
 
