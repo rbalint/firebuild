@@ -136,6 +136,10 @@ class ExecedProcess : public Process {
   const tsl::hopscotch_map<const FileName*, const FileUsage*>& file_usages() const {
     return file_usages_;
   }
+  tsl::hopscotch_map<const FileName*, std::string>& symlink_targets() {return symlink_targets_;}
+  const tsl::hopscotch_map<const FileName*, std::string>& symlink_targets() const {
+    return symlink_targets_;
+  }
   void do_finalize();
   void set_on_finalized_ack(int id, int fd);
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);}
@@ -315,6 +319,8 @@ class ExecedProcess : public Process {
   std::vector<const FileName*> libs_;
   /** File usage per path for p and f. c. (t.) */
   tsl::hopscotch_map<const FileName*, const FileUsage*> file_usages_;
+  /** Symlink targets indexed by symlink path. Only for symlinks created by this process. */
+  tsl::hopscotch_map<const FileName*, std::string> symlink_targets_;
   /**
    * Pipes created by this process.
    */

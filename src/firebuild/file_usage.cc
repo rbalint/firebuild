@@ -188,6 +188,15 @@ const FileUsage* FileUsage::merge(const FileUsageUpdate& update, const bool prop
         }
         break;
       }
+      case ISSYMLINK: {
+        /* Symlinks have similar behavior to regular files in terms of merging. */
+        if (update_initial_type != DONTKNOW &&
+            update_initial_type != EXIST &&
+            update_initial_type != ISSYMLINK) {
+          return nullptr;
+        }
+        break;
+      }
     }
 
     if (update.written()) {
