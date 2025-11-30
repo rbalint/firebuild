@@ -478,6 +478,45 @@ FileUsageUpdate FileUsageUpdate::get_newfile_usage_from_rename_params(const File
   return update;
 }
 
+/**
+ * Based on the parameters and return value of a symlink() or symlinkat() call, returns a
+ * FileUsageUpdate object that reflects how our usage of this file changed.
+ */
+FileUsageUpdate FileUsageUpdate::get_from_symlink_params(const FileName *filename,
+                                                         const char* target, int err) {
+  TRACK(FB_DEBUG_PROC, "target=%s, err=%d", D(target), err);
+
+  FileUsageUpdate update(filename);
+
+  if (!err) {
+    /* Symlink was created successfully. The path didn't exist before. */
+    update.set_initial_type(NOTEXIST);
+    update.parent_type_ = ISDIR;
+    update.written_ = true;
+    /* Store the symlink target in FileInfo */
+    update.initial_state_.set_symlink_target(target);
+  } else {
+    /* Symlink creation failed */
+    switch (err) {
+      case EEXIST:
+        /* The path already exists */
+        update.set_initial_type(EXIST);
+        break;
+      case ENOENT:
+        /* A component of the path doesn't exist */
+        update.set_initial_type(NOTEXIST);
+        update.parent_type_ = NOTEXIST;
+        break;
+      default:
+        /* We don't support other errors yet. */
+        update.unknown_err_ = err;
+        break;
+    }
+  }
+
+  return update;
+}
+
 /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
  * See #431 for design and rationale. */

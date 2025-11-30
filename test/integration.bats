@@ -270,6 +270,8 @@ SCRIPT
   assert_streq "$result" "ok"
   assert_streq "$(strip_stderr stderr)" ""
 
+  # Clear cache to ensure the second run isn't shortcutted, since we want to test comm output
+  rm -rf test_cache_dir
   result=$(./run-firebuild -d comm -- ./test_stat)
   assert_streq "$result" "ok"
   # TODO(rbalint) this is failing on i386

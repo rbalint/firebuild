@@ -47,6 +47,8 @@ class FileUsageUpdate {
   static FileUsageUpdate get_oldfile_usage_from_rename_params(const FileName* old_name,
                                                               const FileName* new_name, int err);
   static FileUsageUpdate get_newfile_usage_from_rename_params(const FileName* new_name, int err);
+  static FileUsageUpdate get_from_symlink_params(const FileName *filename, const char* target,
+                                                 int err);
 
   FileType parent_type() const {return parent_type_;}
   bool written() const {return written_;}
@@ -69,6 +71,7 @@ class FileUsageUpdate {
       {initial_state_.set_mode_bits(mode, mode_mask);}
   mode_t initial_mode() const {return initial_state_.mode();}
   mode_t initial_mode_mask() const {return initial_state_.mode_mask();}
+  const char* initial_symlink_target() const {return initial_state_.symlink_target();}
   const FileInfo& initial_state() const {return initial_state_;}
 
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
