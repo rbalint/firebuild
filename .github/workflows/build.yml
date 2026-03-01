@@ -90,6 +90,12 @@ jobs:
         sudo apt-get -y install $BUILD_DEPS $TEST_DEPS valgrind
     - name: build-in-tree
       run: |
+        # install firebuild's debug symbols from the PPA to get better stack traces in valgrind
+        sudo add-apt-repository -y ppa:ci-train-ppa-service/4971
+        sudo apt-get update
+        sudo apt-get upgrade -y
+        wget https://launchpad.net/~ci-train-ppa-service/+archive/ubuntu/4971/+files/firebuild-dbgsym_0.8.6-1~ubuntu24.04.0~ppa2_amd64.ddeb
+        sudo apt-get install -y ./firebuild-dbgsym_0.8.6-1~ubuntu24.04.0~ppa2_amd64.ddeb
         valgrind firebuild cmake -DWITH_JEMALLOC=OFF -DCMAKE_BUILD_TYPE=Debug .
         firebuild make -j$(getconf _NPROCESSORS_ONLN) all check-bins
     - name: test
