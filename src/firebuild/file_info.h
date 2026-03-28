@@ -19,7 +19,9 @@
 #ifndef FIREBUILD_FILE_INFO_H_
 #define FIREBUILD_FILE_INFO_H_
 
+#include <cstring>
 #include <string>
+#include <unordered_set>
 
 #include "firebuild/hash.h"
 
@@ -44,7 +46,9 @@ typedef enum {
   ISREG,
   /** We know that the filesystem entry is a directory. */
   ISDIR,
-  FILE_TYPE_MAX = ISDIR
+  /** We know that the filesystem entry is a symbolic link. */
+  ISSYMLINK,
+  FILE_TYPE_MAX = ISSYMLINK
 } FileType;
 
 /**
@@ -93,6 +97,12 @@ class FileInfo {
     mode_mask_ |= mask;
   }
 
+  /* Symlink target accessors. The target string is interned and owned by the global pool. */
+  const char* symlink_target() const {return symlink_target_;}
+  void set_symlink_target(const char* target) {
+    symlink_target_ = target ? intern_symlink_target(target) : nullptr;
+  }
+
   /* Misc */
   static int file_type_to_int(const FileType t) {
     switch (t) {
@@ -102,6 +112,7 @@ class FileInfo {
       case NOTEXIST_OR_ISREG: return NOTEXIST_OR_ISREG;
       case ISREG: return ISREG;
       case ISDIR: return ISDIR;
+      case ISSYMLINK: return ISSYMLINK;
       default:
         abort();
     }
@@ -115,6 +126,7 @@ class FileInfo {
       case NOTEXIST_OR_ISREG: return NOTEXIST_OR_ISREG;
       case ISREG: return ISREG;
       case ISDIR: return ISDIR;
+      case ISSYMLINK: return ISSYMLINK;
       default:
         abort();
     }
@@ -169,7 +181,25 @@ class FileInfo {
   /** Which of the bits in mode_ are known. */
   mode_t mode_mask_ {0};
 
-  friend bool operator==(const FileInfo& lhs, const FileInfo& rhs) = default;
+  /** The symlink target path. Only set if type_ is ISSYMLINK.
+   *  Points to an interned string owned by the global pool. */
+  const char* symlink_target_ {nullptr};
+
+  /** Intern a symlink target string. Returns a pointer to the interned string.
+   *  Thread-safe due to C++11 magic statics. */
+  static const char* intern_symlink_target(const char* target) {
+    static std::unordered_set<std::string> symlink_target_pool;
+    auto result = symlink_target_pool.insert(std::string(target));
+    return result.first->c_str();
+  }
+
+  friend bool operator==(const FileInfo& lhs, const FileInfo& rhs) {
+    /* symlink_target_ comparison can use pointer equality since they are interned */
+    return lhs.type_ == rhs.type_ && lhs.size_ == rhs.size_ &&
+           lhs.hash_known_ == rhs.hash_known_ && lhs.hash_ == rhs.hash_ &&
+           lhs.mode_ == rhs.mode_ && lhs.mode_mask_ == rhs.mode_mask_ &&
+           lhs.symlink_target_ == rhs.symlink_target_;
+  }
 };
 
 /* Global debugging methods.

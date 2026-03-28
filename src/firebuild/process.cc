@@ -1418,19 +1418,28 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
   return 0;
 }
 
-int Process::handle_symlink(const char * const target,
+int Process::handle_symlink(const char * const target, const size_t target_len,
                             const int newdirfd, const char * const new_ar_name,
-                            const int error) {
+                            const size_t new_ar_len, const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
          "target=%s, newdirfd=%d, new_ar_name=%s, error=%d",
          D(target), newdirfd, D(new_ar_name), error);
 
-  if (!error) {
-    exec_point()->disable_shortcutting_bubble_up(
-        "Process created a symlink",
-        " ([" + d(newdirfd) + "]" + d(new_ar_name) + " -> " + d(target) + ")");
+  (void)target_len;  /* unused - target is null-terminated */
+
+  const FileName* name = get_absolute(newdirfd, new_ar_name, new_ar_len);
+  if (!name) {
+    exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to symlinkat()");
     return -1;
   }
+
+  FileUsageUpdate update = FileUsageUpdate::get_from_symlink_params(name, target, error);
+  if (!exec_point()->register_file_usage_update(name, update)) {
+    exec_point()->disable_shortcutting_bubble_up(
+        "Could not register the symlink creation ", *name);
+    return -1;
+  }
+
   return 0;
 }
 

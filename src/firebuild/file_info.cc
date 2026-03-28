@@ -41,6 +41,8 @@ std::string d(const FileInfo& fi, const int level) {
           ", hash=" + d(fi.hash()) : "") +
       (fi.mode_mask() != 0 ?
           ", mode=" + std::string(mode_str) + ", mode_mask=" + std::string(mode_mask_str) : "") +
+      (fi.symlink_target() != nullptr ?
+          ", symlink_target=" + std::string(fi.symlink_target()) : "") +
       "}";
 }
 std::string d(const FileInfo *fi, const int level) {
@@ -65,6 +67,8 @@ const char *file_type_to_string(FileType type) {
       return "isreg";
     case ISDIR:
       return "isdir";
+    case ISSYMLINK:
+      return "issymlink";
     default:
       assert(0 && "unknown type");
       return "UNKNOWN";

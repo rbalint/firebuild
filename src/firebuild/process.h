@@ -571,15 +571,17 @@ class Process {
 
   /**
    * Handle symlink()
-   * @param target relative or absolute target file name
+   * @param target relative or absolute target file
+   * @param target_len length of target
    * @param newdirfd the newdirfd of symlinkat(), or AT_FDCWD
    * @param new_ar_name new relative or absolute file name
+   * @param new_ar_len length of new_ar_name
    * @param error error code
    * @return 0 on success, -1 on failure
    */
-  int handle_symlink(const char * const target,
+  int handle_symlink(const char * const target, const size_t target_len,
                      const int newdirfd, const char * const new_ar_name,
-                     const int error = 0);
+                     const size_t new_ar_len, const int error = 0);
 
   /**
    * Handle successfully clearing the cloexec bit, via a

@@ -443,6 +443,13 @@ bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
         return false;
       }
       break;
+    case ISSYMLINK:
+      /* Symlink matching - for now just check if the file type matches.
+       * The target matching is done separately in the caching logic. */
+      if (entry->info.type() != ISSYMLINK) {
+        return false;
+      }
+      break;
   }
 
   if ((query.mode() & query.mode_mask()) != (entry->info.mode() & query.mode_mask())) {
